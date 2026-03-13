@@ -76,22 +76,6 @@ export default function Admin() {
         return Math.max(...stats.monthDailySales.map((item) => item.amount), 1);
     }, [stats.monthDailySales]);
 
-    const monthSalesPoints = useMemo(() => {
-        if (!stats.monthDailySales?.length) return '';
-        const width = 100;
-        const height = 40;
-        const stepX = stats.monthDailySales.length > 1
-            ? width / (stats.monthDailySales.length - 1)
-            : width;
-        return stats.monthDailySales
-            .map((item, index) => {
-                const x = index * stepX;
-                const y = height - ((item.amount / monthSalesMax) * height);
-                return `${x},${y}`;
-            })
-            .join(' ');
-    }, [monthSalesMax, stats.monthDailySales]);
-
     return (
         <div className="flex h-screen bg-gray-50">
             {/* Sidebar */}
@@ -184,14 +168,19 @@ export default function Admin() {
                                         {stats.monthDailySales?.length > 0 ? (
                                             <div>
                                                 <div className="h-48 bg-white border rounded-lg p-3">
-                                                    <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full">
-                                                        <polyline
-                                                            fill="none"
-                                                            stroke="#4f46e5"
-                                                            strokeWidth="1.5"
-                                                            points={monthSalesPoints}
-                                                        />
-                                                    </svg>
+                                                    <div className="h-full flex items-end gap-1">
+                                                        {stats.monthDailySales.map((item) => {
+                                                            const heightPercent = Math.max((item.amount / monthSalesMax) * 100, item.amount > 0 ? 2 : 0);
+                                                            return (
+                                                                <div
+                                                                    key={item.day}
+                                                                    className="flex-1 bg-indigo-500/90 hover:bg-indigo-500 transition rounded-t"
+                                                                    style={{ height: `${heightPercent}%` }}
+                                                                    title={`${item.day}日: ¥${item.amount.toLocaleString()}`}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
                                                 <div className="mt-2 flex justify-between text-xs text-gray-500">
                                                     <span>1日</span>
