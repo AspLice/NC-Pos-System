@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { getProducts, addProduct, deleteProduct, updateProduct } from '../services/productService';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { getProducts, addProduct, deleteProduct, updateProduct, migrateProductImage } from '../services/productService';
 import { Trash2, Edit, Plus, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 const CATEGORIES = ['ドリンク', 'フード', 'スーパーフード', 'ジョイント'];
@@ -12,19 +12,19 @@ export default function ProductManager() {
     const [formData, setFormData] = useState({ name: '', price: '', category: CATEGORIES[0] });
     const [imageFile, setImageFile] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+    const [migratingExisting, setMigratingExisting] = useState(false);
 
     useEffect(() => {
         fetchProducts();
     }, []);
 
-    const fetchProducts = async () => {
+    const fetchProducts = async (options = {}) => {
         try {
             setLoading(true);
-            const data = await getProducts();
+            const data = await getProducts(300, options);
             setProducts(data);
         } catch (error) {
             console.error("Failed to fetch products", error);
-            // Fallback for dummy data if Firebase fails
             setProducts([
                 { id: '1', name: 'サンプルコーヒー', price: 450, category: 'Drink' },
                 { id: '2', name: 'サンドイッチ', price: 680, category: 'Food' }
@@ -96,16 +96,43 @@ export default function ProductManager() {
         setImageFile(null);
     }, []);
 
-    const handleDelete = useCallback(async (id, imageUrl) => {
+    const handleDelete = useCallback(async (product) => {
         if (!window.confirm('この商品を削除してもよろしいですか？')) return;
 
         try {
-            await deleteProduct(id, imageUrl);
-            setProducts(products.filter(p => p.id !== id));
+            await deleteProduct(product);
+            setProducts(products.filter(p => p.id !== product.id));
         } catch (error) {
             console.error("Failed to delete product", error);
             alert('Firebaseが未設定のため、実際の削除処理はスキップされました。');
-            setProducts(products.filter(p => p.id !== id));
+            setProducts(products.filter(p => p.id !== product.id));
+        }
+    }, [products]);
+
+    const handleMigrateExistingImages = useCallback(async () => {
+        const targets = products.filter((product) =>
+            product.imageUrl && (!product.thumbnailUrl || !product.imagePath || !product.thumbnailPath)
+        );
+
+        if (targets.length === 0) {
+            alert('最適化が必要な既存画像はありません。');
+            return;
+        }
+
+        if (!window.confirm(`既存商品の画像を最適化します（${targets.length}件）。実行しますか？`)) return;
+
+        setMigratingExisting(true);
+        try {
+            for (const product of targets) {
+                await migrateProductImage(product);
+            }
+            await fetchProducts({ forceRefresh: true });
+            alert(`既存画像の最適化が完了しました（${targets.length}件）。`);
+        } catch (error) {
+            console.error("Failed to migrate existing images", error);
+            alert(`既存画像の最適化中にエラーが発生しました。\n${error?.message || ''}`);
+        } finally {
+            setMigratingExisting(false);
         }
     }, [products]);
 
@@ -121,15 +148,24 @@ export default function ProductManager() {
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-gray-800">商品リスト</h2>
-                <button
-                    onClick={() => {
-                        resetForm();
-                        setIsFormOpen(!isFormOpen);
-                    }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition flex items-center gap-2"
-                >
-                    {isFormOpen && !editingId ? 'キャンセル' : <><Plus size={18} /> 新規商品追加</>}
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleMigrateExistingImages}
+                        disabled={migratingExisting}
+                        className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition flex items-center gap-2"
+                    >
+                        {migratingExisting ? <><Loader2 size={16} className="animate-spin" /> 変換中...</> : '既存画像を最適化'}
+                    </button>
+                    <button
+                        onClick={() => {
+                            resetForm();
+                            setIsFormOpen(!isFormOpen);
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition flex items-center gap-2"
+                    >
+                        {isFormOpen && !editingId ? 'キャンセル' : <><Plus size={18} /> 新規商品追加</>}
+                    </button>
+                </div>
             </div>
 
             {isFormOpen && (
@@ -198,14 +234,13 @@ export default function ProductManager() {
                 </form>
             )}
 
-            {/* Products Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {products.map((product) => (
                     <div key={product.id} className="bg-white border rounded-xl shadow-sm hover:shadow relative overflow-hidden group transition">
                         <div className="h-40 bg-gray-100 flex items-center justify-center text-gray-400 border-b relative">
-                            {product.imageUrl ? (
+                            {(product.thumbnailUrl || product.imageUrl) ? (
                                 <img
-                                    src={product.imageUrl}
+                                    src={product.thumbnailUrl || product.imageUrl}
                                     alt={product.name}
                                     loading="lazy"
                                     decoding="async"
@@ -217,7 +252,6 @@ export default function ProductManager() {
                                     <span className="text-xs">No Image</span>
                                 </div>
                             )}
-                            {/* Overlay Actions */}
                             <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
                                     onClick={(e) => { e.stopPropagation(); handleEditClick(product); }}
@@ -227,7 +261,7 @@ export default function ProductManager() {
                                     <Edit size={16} />
                                 </button>
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); handleDelete(product.id, product.imageUrl); }}
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(product); }}
                                     className="bg-white/90 p-2 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700 shadow-sm transition"
                                     title="削除"
                                 >
