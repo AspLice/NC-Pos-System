@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  
+  --color-accent: #f59e0b;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+#root {
+  width: 100%;
+}
+
+@layer utilities {
+  .font-brand {
+    font-family: 'Playfair Display', serif;
+    letter-spacing: 0.05em;
+    color: #4a3b32; /* 少し落ち着いたダークブラウン・グレー系の色味 */
+  }
+}
