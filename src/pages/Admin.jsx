@@ -11,7 +11,13 @@ import { getProductsCount } from '../services/productService';
 
 export default function Admin() {
     const [activeTab, setActiveTab] = useState('dashboard');
-    const [stats, setStats] = useState({ todaySales: 0, todayCount: 0, productCount: 0 });
+    const [stats, setStats] = useState({
+        todaySales: 0,
+        monthSales: 0,
+        todayCount: 0,
+        productCount: 0,
+        monthDailySales: []
+    });
     const [loadingStats, setLoadingStats] = useState(false);
 
     const { logout, currentUser } = useAuth();
@@ -64,6 +70,27 @@ export default function Admin() {
         { id: 'history', name: '販売履歴', icon: Clock },
         { id: 'settings', name: '設定', icon: Settings },
     ], []);
+
+    const monthSalesMax = useMemo(() => {
+        if (!stats.monthDailySales?.length) return 1;
+        return Math.max(...stats.monthDailySales.map((item) => item.amount), 1);
+    }, [stats.monthDailySales]);
+
+    const monthSalesPoints = useMemo(() => {
+        if (!stats.monthDailySales?.length) return '';
+        const width = 100;
+        const height = 40;
+        const stepX = stats.monthDailySales.length > 1
+            ? width / (stats.monthDailySales.length - 1)
+            : width;
+        return stats.monthDailySales
+            .map((item, index) => {
+                const x = index * stepX;
+                const y = height - ((item.amount / monthSalesMax) * height);
+                return `${x},${y}`;
+            })
+            .join(' ');
+    }, [monthSalesMax, stats.monthDailySales]);
 
     return (
         <div className="flex h-screen bg-gray-50">
@@ -127,18 +154,53 @@ export default function Admin() {
                                     <Loader2 className="animate-spin mr-2" /> データ読み込み中...
                                 </div>
                             ) : (
-                                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
-                                        <h3 className="text-blue-800 font-medium">今日の売上</h3>
-                                        <p className="text-3xl font-bold text-blue-900 mt-2">¥{stats.todaySales.toLocaleString()}</p>
+                                <div className="mt-6 space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                                        <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+                                            <h3 className="text-blue-800 font-medium">日間売上</h3>
+                                            <p className="text-3xl font-bold text-blue-900 mt-2">¥{stats.todaySales.toLocaleString()}</p>
+                                        </div>
+                                        <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
+                                            <h3 className="text-indigo-800 font-medium">月間売上</h3>
+                                            <p className="text-3xl font-bold text-indigo-900 mt-2">¥{stats.monthSales.toLocaleString()}</p>
+                                        </div>
+                                        <div className="bg-green-50 p-6 rounded-xl border border-green-100">
+                                            <h3 className="text-green-800 font-medium">今日の販売件数</h3>
+                                            <p className="text-3xl font-bold text-green-900 mt-2">{stats.todayCount} 件</p>
+                                        </div>
+                                        <div className="bg-purple-50 p-6 rounded-xl border border-purple-100">
+                                            <h3 className="text-purple-800 font-medium">登録商品数</h3>
+                                            <p className="text-3xl font-bold text-purple-900 mt-2">{stats.productCount}</p>
+                                        </div>
                                     </div>
-                                    <div className="bg-green-50 p-6 rounded-xl border border-green-100">
-                                        <h3 className="text-green-800 font-medium">今日の販売件数</h3>
-                                        <p className="text-3xl font-bold text-green-900 mt-2">{stats.todayCount} 件</p>
-                                    </div>
-                                    <div className="bg-purple-50 p-6 rounded-xl border border-purple-100">
-                                        <h3 className="text-purple-800 font-medium">登録商品数</h3>
-                                        <p className="text-3xl font-bold text-purple-900 mt-2">{stats.productCount}</p>
+
+                                    <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h3 className="text-gray-800 font-semibold">月間売上グラフ（日別）</h3>
+                                            <span className="text-sm text-gray-500">
+                                                最大: ¥{monthSalesMax.toLocaleString()}
+                                            </span>
+                                        </div>
+                                        {stats.monthDailySales?.length > 0 ? (
+                                            <div>
+                                                <div className="h-48 bg-white border rounded-lg p-3">
+                                                    <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full">
+                                                        <polyline
+                                                            fill="none"
+                                                            stroke="#4f46e5"
+                                                            strokeWidth="1.5"
+                                                            points={monthSalesPoints}
+                                                        />
+                                                    </svg>
+                                                </div>
+                                                <div className="mt-2 flex justify-between text-xs text-gray-500">
+                                                    <span>1日</span>
+                                                    <span>{stats.monthDailySales.length}日</span>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-500">この月の売上データがありません。</p>
+                                        )}
                                     </div>
                                 </div>
                             )}

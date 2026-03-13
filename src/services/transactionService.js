@@ -33,13 +33,23 @@ export const getDashboardStats = async () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayISO = today.toISOString();
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        const monthStartISO = monthStart.toISOString();
+        const nextMonthStartISO = nextMonthStart.toISOString();
 
         const todayQuery = query(
             collection(db, COLLECTION_NAME),
             where('createdAt', '>=', todayISO)
         );
-        const [todaySnapshot, totalCountSnapshot] = await Promise.all([
+        const monthQuery = query(
+            collection(db, COLLECTION_NAME),
+            where('createdAt', '>=', monthStartISO),
+            where('createdAt', '<', nextMonthStartISO)
+        );
+        const [todaySnapshot, monthSnapshot, totalCountSnapshot] = await Promise.all([
             getDocs(todayQuery),
+            getDocs(monthQuery),
             getCountFromServer(collection(db, COLLECTION_NAME))
         ]);
 
@@ -47,11 +57,31 @@ export const getDashboardStats = async () => {
             (sum, txDoc) => sum + (txDoc.data().totalAmount || 0),
             0
         );
+        const daysInMonth = today.getDate();
+        const monthDailySales = Array.from({ length: daysInMonth }, (_, index) => ({
+            day: index + 1,
+            amount: 0
+        }));
+
+        let monthSales = 0;
+        monthSnapshot.docs.forEach((txDoc) => {
+            const tx = txDoc.data();
+            const amount = tx.totalAmount || 0;
+            monthSales += amount;
+            if (!tx.createdAt) return;
+            const txDate = new Date(tx.createdAt);
+            const dayIndex = txDate.getDate() - 1;
+            if (dayIndex >= 0 && dayIndex < monthDailySales.length) {
+                monthDailySales[dayIndex].amount += amount;
+            }
+        });
 
         return {
             todaySales,
+            monthSales,
             todayCount: todaySnapshot.size,
-            totalCount: totalCountSnapshot.data().count
+            totalCount: totalCountSnapshot.data().count,
+            monthDailySales
         };
     } catch (error) {
         console.error("Error fetching dashboard stats: ", error);
