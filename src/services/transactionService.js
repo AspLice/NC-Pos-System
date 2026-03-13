@@ -3,10 +3,13 @@ import {
     collection,
     addDoc,
     getDocs,
+    getCountFromServer,
     deleteDoc,
     doc,
     query,
-    orderBy
+    orderBy,
+    where,
+    limit
 } from 'firebase/firestore';
 
 const COLLECTION_NAME = 'transactions';
@@ -27,20 +30,28 @@ export const saveTransaction = async (transactionData) => {
 
 export const getDashboardStats = async () => {
     try {
-        const q = query(collection(db, COLLECTION_NAME));
-        const snapshot = await getDocs(q);
-        const transactions = snapshot.docs.map(doc => doc.data());
-
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        const todayISO = today.toISOString();
 
-        const todayTx = transactions.filter(tx => new Date(tx.createdAt) >= today);
-        const todaySales = todayTx.reduce((sum, tx) => sum + tx.totalAmount, 0);
+        const todayQuery = query(
+            collection(db, COLLECTION_NAME),
+            where('createdAt', '>=', todayISO)
+        );
+        const [todaySnapshot, totalCountSnapshot] = await Promise.all([
+            getDocs(todayQuery),
+            getCountFromServer(collection(db, COLLECTION_NAME))
+        ]);
+
+        const todaySales = todaySnapshot.docs.reduce(
+            (sum, txDoc) => sum + (txDoc.data().totalAmount || 0),
+            0
+        );
 
         return {
             todaySales,
-            todayCount: todayTx.length,
-            totalCount: transactions.length
+            todayCount: todaySnapshot.size,
+            totalCount: totalCountSnapshot.data().count
         };
     } catch (error) {
         console.error("Error fetching dashboard stats: ", error);
@@ -48,9 +59,13 @@ export const getDashboardStats = async () => {
     }
 };
 
-export const getTransactions = async () => {
+export const getTransactions = async (pageLimit = 200) => {
     try {
-        const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+        const q = query(
+            collection(db, COLLECTION_NAME),
+            orderBy('createdAt', 'desc'),
+            limit(pageLimit)
+        );
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map(doc => ({
             id: doc.id,

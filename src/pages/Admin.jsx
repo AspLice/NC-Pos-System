@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Users, Package, Clock, LayoutDashboard, LogOut, Loader2, Settings } from 'lucide-react';
@@ -7,7 +7,7 @@ import StaffManager from '../components/StaffManager';
 import HistoryManager from '../components/HistoryManager';
 import SettingsManager from '../components/SettingsManager';
 import { getDashboardStats } from '../services/transactionService';
-import { getProducts } from '../services/productService';
+import { getProductsCount } from '../services/productService';
 
 export default function Admin() {
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -30,38 +30,40 @@ export default function Admin() {
         }
     }, [activeTab]);
 
-    const fetchStats = async () => {
+    const fetchStats = useCallback(async () => {
         setLoadingStats(true);
         try {
-            const dashboardStats = await getDashboardStats();
-            const products = await getProducts();
+            const [dashboardStats, productCount] = await Promise.all([
+                getDashboardStats(),
+                getProductsCount()
+            ]);
             setStats({
                 ...dashboardStats,
-                productCount: products.length
+                productCount
             });
         } catch (error) {
             console.error("Failed to load stats", error);
         } finally {
             setLoadingStats(false);
         }
-    };
+    }, []);
 
-    const handleLogout = async () => {
+    const handleLogout = useCallback(async () => {
         try {
             await logout();
             navigate('/login');
         } catch (error) {
             console.error('Failed to log out', error);
         }
-    };
+    }, [logout, navigate]);
 
-    const tabs = [
+    const tabs = useMemo(() => [
         { id: 'dashboard', name: 'ダッシュボード', icon: LayoutDashboard },
         { id: 'products', name: '商品管理', icon: Package },
         { id: 'staff', name: 'スタッフ管理', icon: Users },
         { id: 'history', name: '販売履歴', icon: Clock },
         { id: 'settings', name: '設定', icon: Settings },
-    ];
+    ], []);
 
     return (
         <div className="flex h-screen bg-gray-50">

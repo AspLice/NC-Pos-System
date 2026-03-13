@@ -6,8 +6,10 @@ import {
     deleteDoc,
     doc,
     getDocs,
+    getCountFromServer,
     query,
-    orderBy
+    orderBy,
+    limit
 } from 'firebase/firestore';
 import {
     ref,
@@ -17,6 +19,29 @@ import {
 } from 'firebase/storage';
 
 const COLLECTION_NAME = 'products';
+const PRODUCTS_CACHE_TTL_MS = 30 * 1000;
+let productsCache = {
+    data: null,
+    timestamp: 0
+};
+
+const isProductsCacheValid = () =>
+    Array.isArray(productsCache.data) &&
+    (Date.now() - productsCache.timestamp) < PRODUCTS_CACHE_TTL_MS;
+
+const setProductsCache = (data) => {
+    productsCache = {
+        data,
+        timestamp: Date.now()
+    };
+};
+
+const clearProductsCache = () => {
+    productsCache = {
+        data: null,
+        timestamp: 0
+    };
+};
 
 // Upload image to Firebase Storage
 export const uploadProductImage = async (file) => {
@@ -42,6 +67,7 @@ export const addProduct = async (productData, imageFile) => {
         };
 
         const docRef = await addDoc(collection(db, COLLECTION_NAME), newProduct);
+        clearProductsCache();
         return { id: docRef.id, ...newProduct };
     } catch (error) {
         console.error("Error adding product: ", error);
@@ -49,17 +75,38 @@ export const addProduct = async (productData, imageFile) => {
     }
 };
 
-// Get all products
-export const getProducts = async () => {
+// Get all products with pagination
+export const getProducts = async (pageLimit = 100, options = {}) => {
     try {
-        const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+        const forceRefresh = options.forceRefresh === true;
+        if (!forceRefresh && isProductsCacheValid()) {
+            return productsCache.data.slice(0, pageLimit);
+        }
+
+        const q = query(
+            collection(db, COLLECTION_NAME),
+            orderBy('createdAt', 'desc'),
+            limit(pageLimit)
+        );
         const querySnapshot = await getDocs(q);
-        return querySnapshot.docs.map(doc => ({
+        const products = querySnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         }));
+        setProductsCache(products);
+        return products;
     } catch (error) {
         console.error("Error fetching products: ", error);
+        throw error;
+    }
+};
+
+export const getProductsCount = async () => {
+    try {
+        const countSnapshot = await getCountFromServer(collection(db, COLLECTION_NAME));
+        return countSnapshot.data().count;
+    } catch (error) {
+        console.error("Error counting products: ", error);
         throw error;
     }
 };
@@ -80,6 +127,7 @@ export const updateProduct = async (id, productData, newImageFile, oldImageUrl) 
             imageUrl,
             updatedAt: new Date().toISOString()
         });
+        clearProductsCache();
 
         return { id, ...productData, imageUrl };
     } catch (error) {
@@ -92,6 +140,7 @@ export const updateProduct = async (id, productData, newImageFile, oldImageUrl) 
 export const deleteProduct = async (id, imageUrl) => {
     try {
         await deleteDoc(doc(db, COLLECTION_NAME, id));
+        clearProductsCache();
 
         // Attempt to delete the image from storage if it exists
         if (imageUrl) {

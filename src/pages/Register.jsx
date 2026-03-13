@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogOut, Settings, ShoppingCart, Image as ImageIcon, Trash2, Plus, Minus, Loader2, Copy, CheckCircle2, CheckCircle, X } from 'lucide-react';
@@ -52,16 +52,16 @@ export default function Register() {
         }
     };
 
-    const handleLogout = async () => {
+    const handleLogout = useCallback(async () => {
         try {
             await logout();
             navigate('/login');
         } catch (error) {
             console.error('Failed to log out', error);
         }
-    };
+    }, [logout, navigate]);
 
-    const addToCart = (product) => {
+    const addToCart = useCallback((product) => {
         setCart((prevCart) => {
             const existing = prevCart.find(item => item.id === product.id);
             if (existing) {
@@ -71,9 +71,9 @@ export default function Register() {
             }
             return [...prevCart, { ...product, quantity: 30 }];
         });
-    };
+    }, []);
 
-    const updateQuantity = (id, delta) => {
+    const updateQuantity = useCallback((id, delta) => {
         setCart((prevCart) => {
             return prevCart.map(item => {
                 if (item.id === id) {
@@ -83,9 +83,9 @@ export default function Register() {
                 return item;
             }).filter(item => item.quantity > 0);
         });
-    };
+    }, []);
 
-    const setExactQuantity = (id, value) => {
+    const setExactQuantity = useCallback((id, value) => {
         const qty = parseInt(value, 10);
         if (isNaN(qty)) return;
 
@@ -97,29 +97,44 @@ export default function Register() {
                 return item;
             }).filter(item => item.quantity > 0);
         });
-    };
+    }, []);
 
-    const removeFromCart = (id) => {
+    const removeFromCart = useCallback((id) => {
         setCart(prevCart => prevCart.filter(item => item.id !== id));
-    };
+    }, []);
 
-    const baseSubTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const cartItemCount = cart.reduce((count, item) => count + item.quantity, 0);
+    const baseSubTotal = useMemo(() => 
+        cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+        [cart]
+    );
+    const cartItemCount = useMemo(() =>
+        cart.reduce((count, item) => count + item.quantity, 0),
+        [cart]
+    );
 
-    const discountAmount = isBeginnerDiscount ? Math.floor(baseSubTotal * (settings.beginnerDiscountRate / 100)) : 0;
-    const deliveryFeeAmount = isDelivery ? (settings.deliveryFee * cartItemCount) : 0;
-    const finalTotal = baseSubTotal - discountAmount + deliveryFeeAmount;
+    const discountAmount = useMemo(() =>
+        isBeginnerDiscount ? Math.floor(baseSubTotal * (settings.beginnerDiscountRate / 100)) : 0,
+        [isBeginnerDiscount, baseSubTotal, settings.beginnerDiscountRate]
+    );
+    const deliveryFeeAmount = useMemo(() =>
+        isDelivery ? (settings.deliveryFee * cartItemCount) : 0,
+        [isDelivery, settings.deliveryFee, cartItemCount]
+    );
+    const finalTotal = useMemo(() =>
+        baseSubTotal - discountAmount + deliveryFeeAmount,
+        [baseSubTotal, discountAmount, deliveryFeeAmount]
+    );
 
-    const handleCopyTotal = () => {
+    const handleCopyTotal = useCallback(() => {
         navigator.clipboard.writeText(finalTotal.toString())
             .then(() => {
                 setIsCopied(true);
                 setTimeout(() => setIsCopied(false), 2000);
             })
             .catch(err => console.error("Could not copy text: ", err));
-    };
+    }, [finalTotal]);
 
-    const handleCheckout = async () => {
+    const handleCheckout = useCallback(async () => {
         if (cart.length === 0) return;
 
         try {
@@ -159,14 +174,17 @@ export default function Register() {
         } finally {
             setCheckoutLoading(false);
         }
-    };
+    }, [cart, baseSubTotal, discountAmount, deliveryFeeAmount, finalTotal, currentUser]);
 
-    const FIXED_CATEGORIES = ['ドリンク', 'フード', 'スーパーフード', 'ジョイント'];
-    const displayCategories = ['すべて', ...FIXED_CATEGORIES];
+    const FIXED_CATEGORIES = useMemo(() => ['ドリンク', 'フード', 'スーパーフード', 'ジョイント'], []);
+    const displayCategories = useMemo(() => ['すべて', ...FIXED_CATEGORIES], [FIXED_CATEGORIES]);
 
-    const filteredProducts = activeCategory === 'すべて'
-        ? products
-        : products.filter(p => p.category === activeCategory);
+    const filteredProducts = useMemo(() =>
+        activeCategory === 'すべて'
+            ? products
+            : products.filter(p => p.category === activeCategory),
+        [activeCategory, products]
+    );
 
     return (
         <div className="flex h-screen bg-gray-50 flex-col relative">
@@ -264,7 +282,13 @@ export default function Register() {
                                 >
                                     <div className="h-32 bg-gray-50 flex items-center justify-center text-gray-400 border-b">
                                         {product.imageUrl ? (
-                                            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:opacity-90 transition" />
+                                            <img
+                                                src={product.imageUrl}
+                                                alt={product.name}
+                                                loading="lazy"
+                                                decoding="async"
+                                                className="w-full h-full object-cover group-hover:opacity-90 transition"
+                                            />
                                         ) : (
                                             <ImageIcon size={32} className="opacity-30 group-hover:scale-110 transition" />
                                         )}

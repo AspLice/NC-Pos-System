@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { getProducts, addProduct, deleteProduct, updateProduct } from '../services/productService';
 import { Trash2, Edit, Plus, Image as ImageIcon, Loader2 } from 'lucide-react';
 
@@ -34,7 +34,7 @@ export default function ProductManager() {
         }
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = useCallback(async (e) => {
         e.preventDefault();
         if (!formData.name || !formData.price) return;
 
@@ -59,7 +59,6 @@ export default function ProductManager() {
             console.error("Failed to save product", error);
             alert('Firebaseが未設定のため、実際の保存処理はスキップされました。');
 
-            // Dummy local update/addition
             if (editingId) {
                 const existing = products.find(p => p.id === editingId);
                 const mockUpdated = {
@@ -80,24 +79,24 @@ export default function ProductManager() {
         } finally {
             setSubmitting(false);
         }
-    };
+    }, [editingId, formData, imageFile, products]);
 
-    const handleEditClick = (product) => {
+    const handleEditClick = useCallback((product) => {
         setEditingId(product.id);
         const validCategory = CATEGORIES.includes(product.category) ? product.category : CATEGORIES[0];
         setFormData({ name: product.name, price: product.price, category: validCategory });
         setImageFile(null);
         setIsFormOpen(true);
-    };
+    }, []);
 
-    const resetForm = () => {
+    const resetForm = useCallback(() => {
         setIsFormOpen(false);
         setEditingId(null);
         setFormData({ name: '', price: '', category: CATEGORIES[0] });
         setImageFile(null);
-    };
+    }, []);
 
-    const handleDelete = async (id, imageUrl) => {
+    const handleDelete = useCallback(async (id, imageUrl) => {
         if (!window.confirm('この商品を削除してもよろしいですか？')) return;
 
         try {
@@ -108,7 +107,7 @@ export default function ProductManager() {
             alert('Firebaseが未設定のため、実際の削除処理はスキップされました。');
             setProducts(products.filter(p => p.id !== id));
         }
-    };
+    }, [products]);
 
     if (loading) {
         return (
@@ -205,7 +204,13 @@ export default function ProductManager() {
                     <div key={product.id} className="bg-white border rounded-xl shadow-sm hover:shadow relative overflow-hidden group transition">
                         <div className="h-40 bg-gray-100 flex items-center justify-center text-gray-400 border-b relative">
                             {product.imageUrl ? (
-                                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                                <img
+                                    src={product.imageUrl}
+                                    alt={product.name}
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="w-full h-full object-cover"
+                                />
                             ) : (
                                 <div className="flex flex-col items-center">
                                     <ImageIcon size={32} className="mb-2 opacity-50" />

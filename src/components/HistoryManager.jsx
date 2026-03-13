@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getTransactions, deleteTransaction } from '../services/transactionService';
 import { Loader2, Trash2 } from 'lucide-react';
 
@@ -10,9 +10,9 @@ export default function HistoryManager() {
         fetchHistory();
     }, []);
 
-    const fetchHistory = async () => {
+    const fetchHistory = useCallback(async () => {
         try {
-            const data = await getTransactions();
+            const data = await getTransactions(200);
             setHistory(data);
         } catch (error) {
             console.warn("Using mock history. Firebase not configured.");
@@ -31,18 +31,18 @@ export default function HistoryManager() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const handleDelete = async (id) => {
+    const handleDelete = useCallback(async (id) => {
         if (!window.confirm('この取引履歴を削除してもよろしいですか？')) return;
         try {
             await deleteTransaction(id);
-            setHistory(history.filter(h => h.id !== id));
+            setHistory(prev => prev.filter(h => h.id !== id));
         } catch (error) {
             alert('Mock mode: Removed from local state.');
-            setHistory(history.filter(h => h.id !== id));
+            setHistory(prev => prev.filter(h => h.id !== id));
         }
-    };
+    }, []);
 
     if (loading) return <div className="p-8 text-center text-gray-500"><Loader2 className="animate-spin inline mr-2" /> 読み込み中...</div>;
 
