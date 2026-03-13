@@ -1,13 +1,27 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 
+const requiredEnvKeys = [
+    'VITE_FIREBASE_API_KEY',
+    'VITE_FIREBASE_AUTH_DOMAIN',
+    'VITE_FIREBASE_PROJECT_ID',
+    'VITE_FIREBASE_STORAGE_BUCKET',
+    'VITE_FIREBASE_MESSAGING_SENDER_ID',
+    'VITE_FIREBASE_APP_ID'
+];
+
+const missingEnvKeys = requiredEnvKeys.filter((key) => !process.env[key]);
+if (missingEnvKeys.length > 0) {
+    throw new Error(`Missing Firebase env vars for reset script: ${missingEnvKeys.join(', ')}`);
+}
+
 const firebaseConfig = {
-    apiKey: "AIzaSyCJheKSA5UdIkGQQ4nbg89YILjC9majiPc",
-    authDomain: "krr-pos-system.firebaseapp.com",
-    projectId: "krr-pos-system",
-    storageBucket: "krr-pos-system.firebasestorage.app",
-    messagingSenderId: "582408755983",
-    appId: "1:582408755983:web:323c06674db8035ca3bc7a"
+    apiKey: process.env.VITE_FIREBASE_API_KEY,
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.VITE_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
