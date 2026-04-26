@@ -284,7 +284,7 @@ export default function Register() {
                                     onClick={() => addToCart(product)}
                                     className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-blue-300 transition cursor-pointer active:scale-95 group flex flex-col"
                                 >
-                                    <div className="h-32 bg-gray-50 flex items-center justify-center text-gray-400 border-b">
+                                    <div className="h-24 bg-gray-50 flex items-center justify-center text-gray-400 border-b">
                                         {product.imageUrl ? (
                                             <img
                                                 src={product.imageUrl}
