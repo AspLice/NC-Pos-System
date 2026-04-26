@@ -277,14 +277,14 @@ export default function Register() {
                             <Loader2 className="animate-spin mr-2" /> 読み込み中...
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2">
                             {filteredProducts.map(product => (
                                 <div
                                     key={product.id}
                                     onClick={() => addToCart(product)}
                                     className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md hover:border-blue-300 transition cursor-pointer active:scale-95 group flex flex-col"
                                 >
-                                    <div className="h-24 bg-gray-50 flex items-center justify-center text-gray-400 border-b">
+                                    <div className="h-16 bg-gray-50 flex items-center justify-center text-gray-400 border-b">
                                         {product.imageUrl ? (
                                             <img
                                                 src={product.imageUrl}
@@ -297,11 +297,11 @@ export default function Register() {
                                             <ImageIcon size={32} className="opacity-30 group-hover:scale-110 transition" />
                                         )}
                                     </div>
-                                    <div className="p-3 flex-1 flex flex-col justify-between">
+                                    <div className="p-1.5 flex-1 flex flex-col justify-between">
                                         <div>
-                                            <p className="font-semibold text-gray-800 line-clamp-2 text-sm leading-snug">{product.name}</p>
+                                            <p className="font-semibold text-gray-800 line-clamp-2 text-xs leading-snug">{product.name}</p>
                                         </div>
-                                        <p className="text-blue-600 font-bold mt-2 text-lg">¥{product.price.toLocaleString()}</p>
+                                        <p className="text-blue-600 font-bold mt-1 text-sm">¥{product.price.toLocaleString()}</p>
                                     </div>
                                 </div>
                             ))}
