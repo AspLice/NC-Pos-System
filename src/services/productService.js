@@ -1,4 +1,4 @@
-import { db, storage } from '../firebase';
+import { db, storage, ensureFirebaseAuth } from '../firebase';
 import {
     collection,
     addDoc,
@@ -115,17 +115,37 @@ export const uploadProductImage = async (file) => {
     const imagePath = `products/${baseName}.webp`;
     const thumbnailPath = `products/thumbnails/${baseName}_thumb.webp`;
 
+    try {
+        await ensureFirebaseAuth();
+    } catch (authError) {
+        if (authError?.code === 'auth/operation-not-allowed') {
+            const error = new Error('Firebase匿名認証が無効です。Firebase ConsoleでAuthentication -> Sign-in method -> Anonymousを有効化してください。');
+            error.code = authError.code;
+            throw error;
+        }
+        throw authError;
+    }
+
     const imageRef = ref(storage, imagePath);
     const thumbRef = ref(storage, thumbnailPath);
-    await Promise.all([
-        uploadBytes(imageRef, mainBlob, { contentType: 'image/webp' }),
-        uploadBytes(thumbRef, thumbBlob, { contentType: 'image/webp' })
-    ]);
-    const [imageUrl, thumbnailUrl] = await Promise.all([
-        getDownloadURL(imageRef),
-        getDownloadURL(thumbRef)
-    ]);
-    return { imageUrl, thumbnailUrl, imagePath, thumbnailPath };
+    try {
+        await Promise.all([
+            uploadBytes(imageRef, mainBlob, { contentType: 'image/webp' }),
+            uploadBytes(thumbRef, thumbBlob, { contentType: 'image/webp' })
+        ]);
+        const [imageUrl, thumbnailUrl] = await Promise.all([
+            getDownloadURL(imageRef),
+            getDownloadURL(thumbRef)
+        ]);
+        return { imageUrl, thumbnailUrl, imagePath, thumbnailPath };
+    } catch (storageError) {
+        if (storageError?.code === 'storage/unauthorized') {
+            const error = new Error('Firebase Storageへの書き込み権限がありません。Storage Rulesでproducts配下のwrite権限と認証設定を確認してください。');
+            error.code = storageError.code;
+            throw error;
+        }
+        throw storageError;
+    }
 };
 
 // Add new product

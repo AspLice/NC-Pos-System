@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -30,6 +30,21 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+let authBootstrapPromise = null;
+
+// Ensure Firebase Storage requests can satisfy auth-based rules.
+export const ensureFirebaseAuth = async () => {
+    if (auth.currentUser) return auth.currentUser;
+    if (!authBootstrapPromise) {
+        authBootstrapPromise = signInAnonymously(auth)
+            .then((credential) => credential.user)
+            .finally(() => {
+                authBootstrapPromise = null;
+            });
+    }
+    return authBootstrapPromise;
+};
 
 enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {

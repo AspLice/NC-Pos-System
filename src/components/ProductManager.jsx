@@ -38,12 +38,13 @@ export default function ProductManager() {
         e.preventDefault();
         if (!formData.name || !formData.price) return;
 
+        const productData = {
+            ...formData,
+            price: Number(formData.price)
+        };
+
         try {
             setSubmitting(true);
-            const productData = {
-                ...formData,
-                price: Number(formData.price)
-            };
 
             if (editingId) {
                 const existing = products.find(p => p.id === editingId);
@@ -57,7 +58,19 @@ export default function ProductManager() {
             resetForm();
         } catch (error) {
             console.error("Failed to save product", error);
-            alert('Firebaseが未設定のため、実際の保存処理はスキップされました。');
+            const message = error?.message || '';
+            const isPermissionError =
+                error?.code === 'storage/unauthorized' ||
+                error?.code === 'auth/operation-not-allowed' ||
+                message.includes('権限') ||
+                message.includes('認証');
+
+            if (isPermissionError) {
+                alert(`画像の保存に失敗しました。\n${message}`);
+                return;
+            }
+
+            alert('保存に失敗しました。通信状態とFirebase設定を確認してください。');
 
             if (editingId) {
                 const existing = products.find(p => p.id === editingId);
