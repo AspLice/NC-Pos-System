@@ -19,6 +19,8 @@ export default function Register() {
     const [isBeginnerDiscount, setIsBeginnerDiscount] = useState(false);
     const [isDelivery, setIsDelivery] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
+    const [isStaffSale, setIsStaffSale] = useState(false);
+    const STAFF_SALE_PRICE = 10000;
     const [checkoutPopup, setCheckoutPopup] = useState({ show: false, amount: 0, isMock: false });
 
     useEffect(() => {
@@ -103,9 +105,11 @@ export default function Register() {
         setCart(prevCart => prevCart.filter(item => item.id !== id));
     }, []);
 
-    const baseSubTotal = useMemo(() => 
-        cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-        [cart]
+    const baseSubTotal = useMemo(() =>
+        isStaffSale
+            ? cart.reduce((sum, item) => sum + (STAFF_SALE_PRICE * item.quantity), 0)
+            : cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+        [cart, isStaffSale]
     );
     const cartItemCount = useMemo(() =>
         cart.reduce((count, item) => count + item.quantity, 0),
@@ -225,7 +229,7 @@ export default function Register() {
             {/* Header */}
             <header className="bg-white shadow-sm border-b px-6 py-4 flex justify-between items-center z-20">
                 <div className="flex items-center gap-3">
-                    <img src="/logo.png" alt="Natural Coffe Logo" className="w-10 h-10 object-contain" />
+                    <img src="/logo.png" alt="Natural Coffe Logo" className="w-7 h-7 object-contain" />
                     <h1 className="text-2xl font-bold font-brand tracking-normal">Natural Coffe</h1>
                 </div>
                 <div className="flex items-center gap-4">
@@ -353,7 +357,7 @@ export default function Register() {
                                     </div>
                                     <div className="flex justify-between items-center mt-1">
                                         <span className="text-blue-600 font-bold">
-                                            ¥{((item.price + (isDelivery ? settings.deliveryFee : 0)) * item.quantity).toLocaleString()}
+                                            ¥{(((isStaffSale ? STAFF_SALE_PRICE : item.price) + (isDelivery ? settings.deliveryFee : 0)) * item.quantity).toLocaleString()}
                                         </span>
 
                                         <div className="flex flex-col gap-2 w-full mt-2">
@@ -400,6 +404,17 @@ export default function Register() {
                                 <span className="text-sm text-gray-700 font-medium">デリバリー料金 (+¥{settings.deliveryFee.toLocaleString()} / 1点)</span>
                             </label>
                         </div>
+
+                        <button
+                            onClick={() => setIsStaffSale(prev => !prev)}
+                            className={`w-full font-bold py-2.5 rounded-xl mb-3 transition border-2 text-sm ${
+                                isStaffSale
+                                    ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500 shadow-md'
+                                    : 'bg-white hover:bg-amber-50 text-amber-600 border-amber-400'
+                            }`}
+                        >
+                            {isStaffSale ? '✔ スタッフ販売中 (¥10,000/個)' : 'スタッフ販売'}
+                        </button>
 
                         <div className="flex flex-col gap-2 mb-4">
                             <div className="flex justify-between items-center text-sm text-gray-500">
